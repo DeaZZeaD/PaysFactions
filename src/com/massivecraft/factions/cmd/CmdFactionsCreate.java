@@ -1,76 +1,70 @@
 package com.massivecraft.factions.cmd;
 
-import com.massivecraft.factions.Factions;
-import com.massivecraft.factions.Rel;
-import com.massivecraft.factions.cmd.req.ReqHasntFaction;
-import com.massivecraft.factions.cmd.type.TypeFactionNameStrict;
-import com.massivecraft.factions.entity.Faction;
-import com.massivecraft.factions.entity.FactionColl;
-import com.massivecraft.factions.entity.MConf;
-import com.massivecraft.factions.event.EventFactionsCreate;
-import com.massivecraft.factions.event.EventFactionsMembershipChange;
-import com.massivecraft.factions.event.EventFactionsMembershipChange.MembershipChangeReason;
-import com.massivecraft.massivecore.MassiveException;
-import com.massivecraft.massivecore.mson.Mson;
-import com.massivecraft.massivecore.store.MStore;
 import org.bukkit.ChatColor;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.java.JavaPlugin;
 
-public class CmdFactionsCreate extends FactionsCommand
-{
-	// -------------------------------------------- //
-	// CONSTRUCT
-	// -------------------------------------------- //
-	
-	public CmdFactionsCreate()
-	{
-		// Aliases
-		this.addAliases("new");
-		
-		// Parameters
-		this.addParameter(TypeFactionNameStrict.get(), "name");
-		
-		// Requirements
-		this.addRequirements(ReqHasntFaction.get());
-	}
-	
-	// -------------------------------------------- //
-	// OVERRIDE
-	// -------------------------------------------- //
-	
-	@Override
-	public void perform() throws MassiveException
-	{
-		// Args
-		String newName = this.readArg();
-		
-		// Pre-Generate Id
-		String factionId = MStore.createId();
-		
-		// Event
-		EventFactionsCreate createEvent = new EventFactionsCreate(sender, factionId, newName);
-		createEvent.run();
-		if (createEvent.isCancelled()) return;
-		
-		// Apply
-		Faction faction = FactionColl.get().create(factionId);
-		faction.setName(newName);
-		
-		msender.setRole(Rel.LEADER);
-		msender.setFaction(faction);
-		
-		EventFactionsMembershipChange joinEvent = new EventFactionsMembershipChange(sender, msender, faction, MembershipChangeReason.CREATE);
-		joinEvent.run();
-		// NOTE: join event cannot be cancelled or you'll have an empty faction
-		
-		// Inform
-		msg("<i>You created the faction %s", faction.getName(msender));
-		message(Mson.mson(mson("You should now: ").color(ChatColor.YELLOW), CmdFactions.get().cmdFactionsDescription.getTemplate()));
-		
-		// Log
-		if (MConf.get().logFactionCreate)
-		{
-			Factions.get().log(msender.getName() + " created a new faction: " + newName);
-		}
-	}
-	
+import com.massivecraft.factions.event.FactionCreateEvent;
+import com.massivecraft.factions.event.FactionJoinEvent;
+import com.massivecraft.factions.event.FactionLeaveEvent;
+
+public class CountryPlugin extends JavaPlugin implements Listener, CommandExecutor {
+
+    @Override
+    public void onEnable() {
+        getServer().getPluginManager().registerEvents(this, this);
+        getCommand("country").setExecutor(this);
+    }
+
+    @Override
+    public void onDisable() {
+        // Code exécuté lors de la désactivation du plugin
+    }
+
+    @EventHandler
+    public void onFactionCreate(FactionCreateEvent event) {
+        String factionName = event.getFactionTag();
+        getLogger().info("Le pays " + factionName + " a été créé !");
+    }
+
+    @EventHandler
+    public void onFactionJoin(FactionJoinEvent event) {
+        Player player = event.getfPlayer().getPlayer();
+        String factionName = event.getFactionTag();
+        player.sendMessage(ChatColor.GREEN + "Bienvenue dans le pays " + factionName + " !");
+    }
+
+    @EventHandler
+    public void onFactionLeave(FactionLeaveEvent event) {
+        Player player = event.getfPlayer().getPlayer();
+        String factionName = event.getFactionTag();
+        player.sendMessage(ChatColor.RED + "Vous avez quitté le pays " + factionName + ".");
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (player.hasPermission("country.joinmessage")) {
+            player.sendMessage(ChatColor.GOLD + "Bienvenue sur le serveur !");
+        }
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("country")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                String message = ChatColor.YELLOW + "Commande /country exécutée par " + player.getName();
+                getLogger().info(message);
+            }
+            return true;
+        }
+        return false;
+    }
 }
